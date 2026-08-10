@@ -1,0 +1,17 @@
+geopandas>=0.14.0
+h3>=3.7.6
+psycopg2-binary>=2.9.9
+requests>=2.31.0
+pandas>=2.1.0
+shapely>=2.0.3
+fiona>=1.9.5
+pyproj>=3.6.0
+numpy>=1.26.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+duckdb>=0.10.0
+pyarrow>=14.0.0
+rasterio>=1.3.9
+click>=8.1.7
+rich>=13.7.0
+aiohttp>=3.9.0
