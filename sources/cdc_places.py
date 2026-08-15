@@ -27,8 +27,9 @@ class CDCPlacesAdapter(BaseSourceAdapter):
         return b""  # paginated in run()
 
     def _fetch_page(self, state: str, offset: int) -> list[dict]:
+        # geographiclevel field doesn't exist in this endpoint; all rows are tract-level
         params = {
-            "$where":  f"stateabbr='{state}' AND geographiclevel='Census Tract'",
+            "$where":  f"stateabbr='{state}'",
             "$limit":  PAGE_SIZE,
             "$offset": offset,
         }

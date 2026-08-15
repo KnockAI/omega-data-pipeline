@@ -5,6 +5,7 @@ API docs: https://www.ncdc.noaa.gov/cdo-web/webservices/v2
 License: Public Domain (US Government)
 """
 import os
+import json
 import time
 import requests
 from datetime import date, timedelta
@@ -33,16 +34,33 @@ class NOAAClimateAdapter(BaseSourceAdapter):
         if not self.token:
             raise ValueError("NOAA_CDO_TOKEN not set in environment")
         self.headers = {"token": self.token}
+        self.checkpoint_path = os.environ.get("NOAA_CHECKPOINT", "./data/checkpoints/noaa_cdo.json")
+
+    def _checkpoint(self):
+        try:
+            with open(self.checkpoint_path) as f: return json.load(f)
+        except (FileNotFoundError, ValueError): return {"complete_states": [], "stations": {}}
+
+    def _save_checkpoint(self, state, station_id):
+        cp = self._checkpoint(); cp.setdefault("stations", {}).setdefault(state, []).append(station_id)
+        os.makedirs(os.path.dirname(self.checkpoint_path), exist_ok=True)
+        tmp = self.checkpoint_path + ".tmp"
+        with open(tmp, "w") as f: json.dump(cp, f)
+        os.replace(tmp, self.checkpoint_path)
 
     def discover(self) -> list[str]:
         return [f"{BASE_URL}/stations"]
 
     def _get(self, endpoint: str, params: dict) -> dict:
-        resp = requests.get(f"{BASE_URL}/{endpoint}", headers=self.headers,
-                            params=params, timeout=30)
-        resp.raise_for_status()
-        time.sleep(0.25)  # CDO rate limit: 5 req/sec
-        return resp.json()
+        for attempt in range(1, 5):
+            resp = requests.get(f"{BASE_URL}/{endpoint}", headers=self.headers,
+                                params=params, timeout=30)
+            if resp.status_code == 429:
+                time.sleep(min(60, 2 ** attempt)); continue
+            resp.raise_for_status()
+            time.sleep(0.25)
+            return resp.json()
+        raise RuntimeError("NOAA rate limit persisted after bounded retries")
 
     def fetch_stations(self, state_fips: str) -> list[dict]:
         """Fetch all GHCND stations in a state."""
@@ -134,17 +152,30 @@ class NOAAClimateAdapter(BaseSourceAdapter):
 
     def run(self, conn):
         print(f"\n=== {self.source_name} ({self.dataset}) ===")
+        checkpoint = self._checkpoint()
         for fips in self.state_fips:
+            if fips in checkpoint.get("complete_states", []):
+                print(f"  State {fips}: checkpoint complete; skipping")
+                continue
             print(f"  State FIPS {fips}: fetching stations...")
             stations = self.fetch_stations(fips)
             print(f"  Found {len(stations)} stations")
 
             for station in tqdm(stations, desc=f"  State {fips}"):
                 sid = station["id"]
+                if sid in checkpoint.get("stations", {}).get(fips, []):
+                    continue
                 obs_raw = self.fetch_data(sid, self.start_date, self.end_date)
                 if not obs_raw:
+                    self._save_checkpoint(fips, sid)
                     continue
                 records = [self.normalize_observation(o, station) for o in obs_raw]
                 self.load(records, conn)
+                self._save_checkpoint(fips, sid)
+            checkpoint = self._checkpoint()
+            checkpoint.setdefault("complete_states", []).append(fips)
+            os.makedirs(os.path.dirname(self.checkpoint_path), exist_ok=True)
+            with open(self.checkpoint_path + ".tmp", "w") as f: json.dump(checkpoint, f)
+            os.replace(self.checkpoint_path + ".tmp", self.checkpoint_path)
 
         print("  NOAA climate data loaded → world_climate")
