@@ -1,0 +1,22 @@
+name: NAD R23 transport checks
+
+on:
+  push:
+    branches: ["feat/nad-r23-failover"]
+  pull_request:
+    paths:
+      - "engine/acquisition/**"
+      - "docs/NAD_R23_FAILOVER.md"
+
+jobs:
+  nad-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: NAD failover and reconciliation tests
+        run: python -m unittest engine.acquisition.test_nad_r23 engine.acquisition.test_nad_feature_server engine.acquisition.test_nad_transport engine.acquisition.test_nad_reconcile
+      - name: Diff hygiene
+        run: git diff --check
