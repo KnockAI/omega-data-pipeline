@@ -139,43 +139,53 @@ class NADFeatureServerIngest:
         metadata["_layer_url"] = self.client.layer_url
         edit = metadata.get("editingInfo", {}).get("lastEditDate") or metadata.get("serviceItemId")
         checkpoint_path = self.workdir / f"{generation}.checkpoint.json"
-        state = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else {"completed": [], "records": []}
-        done = set(state.get("completed", [])); records = list(state.get("records", [])); ordinal = len(records)
+        records_path = self.workdir / f"{generation}.canonical.jsonl"
+        state = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else {"completed": [], "source_records": 0, "canonical_records": 0, "duplicates": 0, "rejects": 0}
+        done = set(state.get("completed", [])); ordinal = int(state.get("source_records", 0))
+        records_path.parent.mkdir(parents=True, exist_ok=True)
         states = states or DEFAULT_STATES
         state_field = _field(metadata, "State", "STATE") or "State"
         county_field = _field(metadata, "County", "COUNTY") or "County"
         partition_keys = [(s, c) for s in states for c in (counties or {}).get(s, [None])]
-        for state_code, county in partition_keys:
+        with records_path.open("a", encoding="utf-8") as output:
+          for state_code, county in partition_keys:
             partition = f"{state_code}:{county or '*'}"
             if partition in done: continue
             where = f"{state_field} = '{state_code.replace(chr(39), chr(39)*2)}'"
             if county:
                 where += f" AND {county_field} = '{county.replace(chr(39), chr(39)*2)}'"
             ids = self.client.ids(where)
+            partition_counts = Counter()
             for start in range(0, len(ids), MAX_OBJECT_IDS):
                 for raw in self.client.records(ids[start:start + MAX_OBJECT_IDS]):
-                    ordinal += 1
-                    try: records.append(_canonical(raw, ordinal, metadata))
-                    except (ValueError, TypeError): continue
+                    ordinal += 1; partition_counts["source_records"] += 1
+                    try: record = _canonical(raw, ordinal, metadata)
+                    except (ValueError, TypeError): partition_counts["rejects"] += 1; continue
+                    output.write(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+                    partition_counts["canonical_records"] += 1
+            output.flush()
             done.add(partition)
-            _atomic(checkpoint_path, {"generation": generation, "source_edit": edit, "completed": sorted(done), "records": records})
+            for key, value in partition_counts.items(): state[key] = int(state.get(key, 0)) + value
+            _atomic(checkpoint_path, {"generation": generation, "source_edit": edit, "completed": sorted(done), **{key: int(value) for key, value in state.items() if key in {"source_records", "canonical_records", "duplicates", "rejects"}}})
         if len(done) != len(partition_keys):
             raise FeatureServerError("incomplete partition checkpoint")
         if self.client.metadata().get("editingInfo", {}).get("lastEditDate") not in (None, edit):
             raise FeatureServerError("source edit timestamp changed during ingest; mixed snapshot refused")
-        source_record_count = len(records)
-        unique: dict[str, dict[str, Any]] = {record["place_id"]: record for record in records}
-        records = list(unique.values())
-        digest = hashlib.sha256(json.dumps(records, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-        counts = Counter({"source_records": source_record_count, "canonical_records": len(records), "duplicates": source_record_count - len(unique)})
+        digest = hashlib.sha256(); unique: set[str] = set(); by_state: Counter[str] = Counter(); by_county: Counter[str] = Counter()
+        with records_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                record = json.loads(line); digest.update(line.encode()); unique.add(record["place_id"])
+                by_state[record["state"]] += 1; by_county[record["county"] or "__UNKNOWN__"] += 1
+        source_total = int(state.get("source_records", 0)); reject_total = int(state.get("rejects", 0))
+        counts = Counter({"source_records": source_total, "canonical_records": len(unique), "duplicates": max(0, source_total - reject_total - len(unique)), "rejects": reject_total})
         manifest = {"source_id": SOURCE_ID, "release": RELEASE, "compiled": COMPILED_DATE, "transport": "official_arcgis_featureserver",
-                    "layer_url": self.client.layer_url, "source_edit": edit, "generation": generation, "fingerprint_sha256": digest,
+                    "layer_url": self.client.layer_url, "source_edit": edit, "generation": generation, "fingerprint_sha256": digest.hexdigest(),
                     "rights": "CLEAR_FOR_NON_MAILING_USE", "mailing_list_export": "DENIED", "counts": dict(counts),
-                    "records_by_state": dict(Counter(r["state"] for r in records)), "records_by_county": dict(Counter(r["county"] or "__UNKNOWN__" for r in records)),
+                    "records_by_state": dict(by_state), "records_by_county": dict(by_county),
                     "created_at": datetime.now(timezone.utc).isoformat()}
         _atomic(self.workdir / f"{generation}.manifest.json", manifest)
-        _atomic(self.workdir / "active-featureserver.json", {"generation": generation, "fingerprint_sha256": digest, "source_edit": edit})
-        _atomic(checkpoint_path, {"generation": generation, "source_edit": edit, "completed": sorted(done), "records": records, "complete": True})
+        _atomic(self.workdir / "active-featureserver.json", {"generation": generation, "fingerprint_sha256": digest.hexdigest(), "source_edit": edit})
+        _atomic(checkpoint_path, {"generation": generation, "source_edit": edit, "completed": sorted(done), **{key: int(value) for key, value in state.items() if key in {"source_records", "canonical_records", "duplicates", "rejects"}}, "complete": True})
         return manifest
 
 
