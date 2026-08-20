@@ -16,6 +16,7 @@ jobs:
           for name, params in {
             'sample': {'where':'1=1','outFields':'*','returnGeometry':'false','resultRecordCount':'3'},
             'ids_al': {'where':"State = 'AL'",'returnIdsOnly':'true'},
+            'features_al': {'where':"State = 'AL'",'outFields':'OBJECTID,State','returnGeometry':'false','resultRecordCount':'3'},
             'ids_quoted': {'where':'"State" = \'AL\'','returnIdsOnly':'true'},
             'ids_bracket': {'where':'[State] = \'AL\'','returnIdsOnly':'true'},
             'ids_in': {'where':"State IN ('AL')",'returnIdsOnly':'true'},
