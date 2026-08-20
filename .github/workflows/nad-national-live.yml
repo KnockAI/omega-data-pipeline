@@ -30,11 +30,24 @@ jobs:
           BATCH: ${{ matrix.batch }}
         run: |
           mkdir -p /tmp/nad-evidence
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          base='https://services.arcgis.com/xOi1kZaI0eWDREZv/ArcGIS/rest/services/Address_Points_from_National_Address_Database_view/FeatureServer/0/query'
+          q=urllib.parse.urlencode({'f':'json','where':'1=1','outFields':'State,STATE,State_Name','returnGeometry':'false','resultRecordCount':'5'})
+          print('NAD_SAMPLE', urllib.request.urlopen(base+'?'+q, timeout=60).read().decode()[:3000])
+          PY
           IFS=',' read -ra STATES <<< "$BATCH"
           for state in "${STATES[@]}"; do
             python -m engine.acquisition.nad_feature_server \
               --workdir "/tmp/nad-evidence/$state" \
               --state "$state"
+            python - "$state" <<'PY'
+          import json, pathlib, sys
+          state=sys.argv[1]
+          manifests=list(pathlib.Path('/tmp/nad-evidence/'+state).glob('*.manifest.json'))
+          if not manifests or json.loads(manifests[0].read_text())['counts']['source_records'] == 0:
+              raise SystemExit(f'zero-source partition: {state}; do not accept false-green ingest')
+          PY
           done
       - name: Upload partition evidence
         uses: actions/upload-artifact@v4
