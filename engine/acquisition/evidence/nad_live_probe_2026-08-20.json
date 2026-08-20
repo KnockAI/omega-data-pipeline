@@ -1,0 +1,15 @@
+{
+  "source": "official_usdot_nad_r23_arcgis",
+  "observed_via": "GitHub Actions non-production probe 32399179409",
+  "compiled": "2026-06-30",
+  "sample_query": {
+    "where": "1=1",
+    "features_returned": 3,
+    "fields_observed": ["OBJECTID", "AddNo_Full", "County", "State", "UUID", "Longitude", "Latitude", "NAD_Source", "DataSet_ID"]
+  },
+  "ids_all": {"returned": 400000, "exceeded_transfer_limit": true},
+  "ids_state_filter": {"where": "State = 'AL'", "http_error": 400, "detail": "Unable to perform query. Please check your parameters."},
+  "interpretation": "Feature query is live, but returnIdsOnly state filtering is not accepted by this view; zero-record manifests are rejected and no promotion is allowed.",
+  "next_transport": "bounded OBJECTID-range enumeration or official bulk/WFS; no false-green acceptance",
+  "mailing_list_export": "DENIED"
+}

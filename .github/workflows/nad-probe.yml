@@ -1,7 +1,6 @@
 name: NAD R23 official probe
 on:
-  push:
-    branches: ["feat/nad-r23-failover"]
+  workflow_dispatch:
 jobs:
   probe:
     runs-on: ubuntu-latest
