@@ -27,6 +27,7 @@ RELEASE = "National Address Database Release 23"
 COMPILED_DATE = "2026-06-30"
 LAYER_URL = "https://services.arcgis.com/xOi1kZaI0eWDREZv/ArcGIS/rest/services/Address_Points_from_National_Address_Database_view/FeatureServer/0"
 MAX_OBJECT_IDS = 2000
+QUERY_PATH = "/query"
 DEFAULT_STATES = (
     "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY"
 ).split()
@@ -51,8 +52,8 @@ class FeatureServerClient:
         self.retries = retries
         self.sleep = sleep
 
-    def _get(self, params: dict[str, Any]) -> dict[str, Any]:
-        url = self.layer_url + "?" + urllib.parse.urlencode({**params, "f": "json"})
+    def _request(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
+        url = endpoint + "?" + urllib.parse.urlencode({**params, "f": "json"})
         last: Exception | None = None
         for attempt in range(self.retries + 1):
             try:
@@ -76,11 +77,17 @@ class FeatureServerClient:
                 self.sleep(min(30, 2 ** attempt))
         raise FeatureServerError(str(last))
 
+    def _request_layer(self, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._request(self.layer_url, params or {})
+
+    def _request_query(self, params: dict[str, Any]) -> dict[str, Any]:
+        return self._request(self.layer_url + QUERY_PATH, params)
+
     def metadata(self) -> dict[str, Any]:
-        return self._get({})
+        return self._request_layer()
 
     def ids(self, where: str) -> list[int]:
-        payload = self._get({"where": where, "returnIdsOnly": "true"})
+        payload = self._request_query({"where": where, "returnIdsOnly": "true"})
         return [int(value) for value in payload.get("objectIds", [])]
 
     def records(self, object_ids: list[int], *, out_fields: str = "*") -> list[dict[str, Any]]:
@@ -88,10 +95,26 @@ class FeatureServerClient:
             raise ValueError("ArcGIS objectIds request exceeds 2000-record ceiling")
         if not object_ids:
             return []
-        payload = self._get({"objectIds": ",".join(str(i) for i in object_ids),
+        payload = self._request_query({"objectIds": ",".join(str(i) for i in object_ids),
                              "outFields": out_fields, "returnGeometry": "true"})
         return [dict(feature.get("attributes", {}), **({"__geometry": feature.get("geometry")} if feature.get("geometry") else {}))
                 for feature in payload.get("features", [])]
+
+    def query_page(self, *, where: str, last_object_id: int, upper_object_id: int | None = None,
+                   out_fields: str = "*") -> list[dict[str, Any]]:
+        clause = f"({where}) AND OBJECTID > {int(last_object_id)}"
+        if upper_object_id is not None:
+            clause += f" AND OBJECTID <= {int(upper_object_id)}"
+        payload = self._request_query({"where": clause, "outFields": out_fields,
+                                       "returnGeometry": "true", "orderByFields": "OBJECTID ASC",
+                                       "resultRecordCount": MAX_OBJECT_IDS})
+        return [dict(feature.get("attributes", {}), **({"__geometry": feature.get("geometry")} if feature.get("geometry") else {}))
+                for feature in payload.get("features", [])]
+
+    def statistics(self) -> dict[str, Any]:
+        stats = [{"statisticType": kind, "onStatisticField": "OBJECTID", "outStatisticFieldName": name}
+                 for kind, name in (("count", "object_count"), ("min", "min_object_id"), ("max", "max_object_id"))]
+        return self._request_query({"where": "1=1", "outStatistics": json.dumps(stats), "returnGeometry": "false"})
 
 
 def _field(metadata: dict[str, Any], *candidates: str) -> str | None:
@@ -132,6 +155,53 @@ class NADFeatureServerIngest:
     def __init__(self, workdir: Path, client: FeatureServerClient | None = None):
         self.workdir = Path(workdir); self.workdir.mkdir(parents=True, exist_ok=True)
         self.client = client or FeatureServerClient()
+
+    def ingest_oid_range(self, lower: int, upper: int, *, generation: str = "r23-20260630-oid") -> dict[str, Any]:
+        """Stream one deterministic OBJECTID shard using keyset pagination."""
+        if upper <= lower:
+            raise ValueError("OID shard upper bound must exceed lower bound")
+        metadata = self.client.metadata(); metadata["_layer_url"] = self.client.layer_url
+        edit = metadata.get("editingInfo", {}).get("lastEditDate") or metadata.get("serviceItemId")
+        checkpoint_path = self.workdir / f"{generation}.checkpoint.json"
+        records_path = self.workdir / f"{generation}.canonical.jsonl"
+        checkpoint = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else {"last_object_id": lower, "source_records": 0, "canonical_records": 0, "rejects": 0, "completed": False}
+        last = int(checkpoint.get("last_object_id", lower)); ordinal = int(checkpoint.get("source_records", 0))
+        if checkpoint.get("completed") and records_path.exists():
+            return json.loads((self.workdir / f"{generation}.manifest.json").read_text())
+        with records_path.open("a", encoding="utf-8") as output:
+            while True:
+                page = self.client.query_page(where="1=1", last_object_id=last, upper_object_id=upper)
+                if not page: break
+                object_ids = [int(row.get("OBJECTID")) for row in page if row.get("OBJECTID") is not None]
+                if object_ids != sorted(set(object_ids)) or (object_ids and object_ids[0] <= last):
+                    raise FeatureServerError("non-monotonic or replayed OBJECTID page")
+                for raw in page:
+                    ordinal += 1
+                    try:
+                        output.write(json.dumps(_canonical(raw, ordinal, metadata), sort_keys=True, separators=(",", ":")) + "\n")
+                        checkpoint["canonical_records"] = int(checkpoint.get("canonical_records", 0)) + 1
+                    except (ValueError, TypeError):
+                        checkpoint["rejects"] = int(checkpoint.get("rejects", 0)) + 1
+                    checkpoint["source_records"] = int(checkpoint.get("source_records", 0)) + 1
+                output.flush(); last = max(object_ids); checkpoint["last_object_id"] = last
+                _atomic(checkpoint_path, {"generation": generation, "lower": lower, "upper": upper, "source_edit": edit, **checkpoint})
+        if self.client.metadata().get("editingInfo", {}).get("lastEditDate") not in (None, edit):
+            raise FeatureServerError("source edit timestamp changed during OID shard")
+        digest = hashlib.sha256(); unique: set[str] = set(); by_state: Counter[str] = Counter(); by_county: Counter[str] = Counter()
+        with records_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                digest.update(line.encode()); record = json.loads(line); unique.add(record["place_id"])
+                by_state[record["state"]] += 1; by_county[record["county"] or "__UNKNOWN__"] += 1
+        source_total = int(checkpoint.get("source_records", 0)); rejects = int(checkpoint.get("rejects", 0))
+        manifest = {"source_id": SOURCE_ID, "release": RELEASE, "compiled": COMPILED_DATE, "transport": "official_arcgis_featureserver",
+                    "layer_url": self.client.layer_url, "source_edit": edit, "generation": generation, "lower": lower, "upper": upper,
+                    "last_object_id": last, "fingerprint_sha256": digest.hexdigest(), "rights": "CLEAR_FOR_NON_MAILING_USE",
+                    "mailing_list_export": "DENIED", "counts": {"source_records": source_total, "canonical_records": len(unique),
+                    "duplicates": max(0, source_total - rejects - len(unique)), "rejects": rejects},
+                    "records_by_state": dict(by_state), "records_by_county": dict(by_county), "created_at": datetime.now(timezone.utc).isoformat()}
+        _atomic(self.workdir / f"{generation}.manifest.json", manifest)
+        _atomic(checkpoint_path, {"generation": generation, "lower": lower, "upper": upper, "source_edit": edit, "last_object_id": last, **checkpoint, "completed": True})
+        return manifest
 
     def ingest(self, states: list[str] | None = None, *, generation: str = "r23-20260630-featureserver",
                counties: dict[str, list[str]] | None = None) -> dict[str, Any]:
@@ -190,8 +260,14 @@ class NADFeatureServerIngest:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(); parser.add_argument("--workdir", type=Path, required=True); parser.add_argument("--state", action="append")
-    args = parser.parse_args(); print(json.dumps(NADFeatureServerIngest(args.workdir).ingest(args.state), indent=2)); return 0
+    parser = argparse.ArgumentParser(); parser.add_argument("--workdir", type=Path, required=True); parser.add_argument("--state", action="append"); parser.add_argument("--lower", type=int); parser.add_argument("--upper", type=int); parser.add_argument("--generation", default="r23-20260630-featureserver")
+    args = parser.parse_args(); ingest = NADFeatureServerIngest(args.workdir)
+    if args.lower is not None or args.upper is not None:
+        if args.lower is None or args.upper is None: parser.error("--lower and --upper must be supplied together")
+        result = ingest.ingest_oid_range(args.lower, args.upper, generation=args.generation)
+    else:
+        result = ingest.ingest(args.state, generation=args.generation)
+    print(json.dumps(result, indent=2)); return 0
 
 
 if __name__ == "__main__": raise SystemExit(main())

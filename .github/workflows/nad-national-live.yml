@@ -3,19 +3,44 @@ name: NAD R23 national conveyor (non-production)
 on:
   workflow_dispatch:
 
+env:
+  LAYER_URL: https://services.arcgis.com/xOi1kZaI0eWDREZv/ArcGIS/rest/services/Address_Points_from_National_Address_Database_view/FeatureServer/0
+
 jobs:
+  plan-shards:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - id: plan
+        env:
+          LAYER_URL: ${{ env.LAYER_URL }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, urllib.parse, urllib.request
+          stats = [{"statisticType": k, "onStatisticField": "OBJECTID", "outStatisticFieldName": n} for k,n in (("count","count"),("min","min"),("max","max"))]
+          q = urllib.parse.urlencode({"f":"json","where":"1=1","outStatistics":json.dumps(stats),"returnGeometry":"false"})
+          payload = json.loads(urllib.request.urlopen(os.environ["LAYER_URL"]+"/query?"+q, timeout=60).read())
+          if payload.get("error") or not payload.get("features"):
+              raise SystemExit(f"missing official NAD statistics: {payload}")
+          attrs = payload["features"][0]["attributes"]
+          lo, hi, count = int(attrs["min"]), int(attrs["max"]), int(attrs["count"])
+          if count <= 0 or hi <= lo: raise SystemExit("non-positive official NAD statistics")
+          parts = 16; width = (hi - lo + parts) // parts
+          shards = [{"lower": lo + i*width - 1, "upper": min(hi, lo + (i+1)*width - 1), "index": i} for i in range(parts) if lo + i*width <= hi]
+          print("shards=" + json.dumps(shards, separators=(",", ":")))
+          PY
+
   ingest:
+    needs: plan-shards
     strategy:
       fail-fast: false
       matrix:
-        batch:
-          - "AL,AR,FL,GA,HI,LA,MS"
-          - "AK,AZ,CO,ID,MT,NM,NV"
-          - "CT,DE,DC,MA,ME,MD,NC"
-          - "IL,IN,IA,KS,KY,MN,MO"
-          - "NE,ND,OH,OK,SD,TX,WI"
-          - "NJ,NY,PA,RI,VT,VA,WV"
-          - "CA,OR,SC,TN,UT,WA,WY"
+        shard: ${{ fromJSON(needs.plan-shards.outputs.shards) }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -23,34 +48,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Acquire and canonicalize assigned states
-        env:
-          BATCH: ${{ matrix.batch }}
+      - name: Acquire keyset shard
         run: |
           mkdir -p /tmp/nad-evidence
-          python - <<'PY'
-          import json, urllib.parse, urllib.request
-          base='https://services.arcgis.com/xOi1kZaI0eWDREZv/ArcGIS/rest/services/Address_Points_from_National_Address_Database_view/FeatureServer/0/query'
-          q=urllib.parse.urlencode({'f':'json','where':'1=1','outFields':'State,STATE,State_Name','returnGeometry':'false','resultRecordCount':'5'})
-          print('NAD_SAMPLE', urllib.request.urlopen(base+'?'+q, timeout=60).read().decode()[:3000])
-          PY
-          IFS=',' read -ra STATES <<< "$BATCH"
-          for state in "${STATES[@]}"; do
-            python -m engine.acquisition.nad_feature_server \
-              --workdir "/tmp/nad-evidence/$state" \
-              --state "$state"
-            python - "$state" <<'PY'
-          import json, pathlib, sys
-          state=sys.argv[1]
-          manifests=list(pathlib.Path('/tmp/nad-evidence/'+state).glob('*.manifest.json'))
-          if not manifests or json.loads(manifests[0].read_text())['counts']['source_records'] == 0:
-              raise SystemExit(f'zero-source partition: {state}; do not accept false-green ingest')
-          PY
-          done
-      - name: Upload partition evidence
-        uses: actions/upload-artifact@v4
+          python -m engine.acquisition.nad_feature_server \
+            --workdir /tmp/nad-evidence \
+            --lower '${{ matrix.shard.lower }}' \
+            --upper '${{ matrix.shard.upper }}' \
+            --generation 'r23-20260630-oid-${{ matrix.shard.index }}'
+      - uses: actions/upload-artifact@v4
         with:
-          name: nad-r23-${{ strategy.job-index }}
+          name: nad-r23-oid-${{ matrix.shard.index }}
           path: /tmp/nad-evidence
 
   reconcile:
@@ -60,22 +68,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          pattern: nad-r23-*
+          pattern: nad-r23-oid-*
           path: /tmp/nad-evidence
           merge-multiple: true
-      - name: Verify every state has explicit disposition
+      - name: Verify shard reconciliation and 51-jurisdiction coverage
         run: |
           python - <<'PY'
-          import json, pathlib, sys
+          import json, pathlib
+          expected = set("AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split())
           manifests = list(pathlib.Path('/tmp/nad-evidence').rglob('*.manifest.json'))
-          if not manifests:
-              raise SystemExit('no NAD partition manifests produced')
-          total = 0
+          if not manifests: raise SystemExit('no shard manifests')
+          seen = set(); source = canonical = rejects = duplicates = 0
           for path in manifests:
-              data = json.loads(path.read_text())
-              counts = data['counts']
-              if counts['source_records'] != counts['canonical_records'] + counts['duplicates'] + counts['rejects']:
-                  raise SystemExit(f'unreconciled partition: {path}')
-              total += counts['canonical_records']
-          print(json.dumps({'partitions': len(manifests), 'canonical_records': total}, sort_keys=True))
+              data=json.loads(path.read_text()); c=data['counts']
+              if c['source_records'] != c['canonical_records'] + c['duplicates'] + c['rejects']:
+                  raise SystemExit(f'unreconciled shard: {path}')
+              source += c['source_records']; canonical += c['canonical_records']; rejects += c['rejects']; duplicates += c['duplicates']; seen.update(data.get('records_by_state', {}))
+          missing=sorted(expected-seen)
+          if missing: raise SystemExit(f'missing jurisdictions in live canonical output: {missing}')
+          print(json.dumps({'shards':len(manifests),'source_records':source,'canonical_records':canonical,'duplicates':duplicates,'rejects':rejects,'states':len(seen)}, sort_keys=True))
           PY

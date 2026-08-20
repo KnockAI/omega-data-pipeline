@@ -1,6 +1,8 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import urlparse
 
 from engine.acquisition.nad_feature_server import FeatureServerClient, NADFeatureServerIngest, MAX_OBJECT_IDS
 
@@ -61,9 +63,41 @@ class NADFeatureServerTest(unittest.TestCase):
         self.assertEqual(client.ids("1=1"), [1])
         self.assertEqual(len(attempts), 3)
 
+    def test_operations_use_explicit_layer_and_query_endpoints(self):
+        class Response:
+            def __init__(self, payload): self.payload = payload
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self): return json.dumps(self.payload).encode()
+
+        calls = []
+        def opener(url, timeout=60):
+            calls.append(url)
+            path = urlparse(url).path
+            if path.endswith("/query"):
+                if "returnIdsOnly" in url: return Response({"objectIds": [1]})
+                return Response({"features": [{"attributes": {"OBJECTID": 1, "Address": "1 Main", "State": "UT"}}]})
+            return Response({"fields": [], "editingInfo": {"lastEditDate": 1}})
+
+        client = FeatureServerClient("https://official.example/FeatureServer/0", opener=opener, sleep=lambda _: None)
+        client.metadata(); client.ids("1=1"); client.records([1]); client.query_page(where="1=1", last_object_id=0)
+        self.assertTrue(urlparse(calls[0]).path.endswith("/FeatureServer/0"))
+        self.assertTrue(all(urlparse(url).path.endswith("/FeatureServer/0/query") for url in calls[1:]))
+
     def test_object_id_ceiling_is_enforced(self):
         client = FakeClient()
         with self.assertRaises(ValueError): client.records(list(range(MAX_OBJECT_IDS + 1)))
+
+    def test_keyset_pages_advance_strictly_and_checkpoint(self):
+        class KeysetClient(FakeClient):
+            def metadata(self): return {"editingInfo": {"lastEditDate": 1}, "fields": []}
+            def query_page(self, *, where, last_object_id, upper_object_id=None, out_fields="*"):
+                values = [1, 2] if last_object_id == 0 else ([3] if last_object_id == 2 else [])
+                return [{"OBJECTID": i, "UUID": str(i), "Address": f"{i} Main", "State": "UT", "County": "Salt Lake", "Latitude": 40.0, "Longitude": -111.0} for i in values]
+        with tempfile.TemporaryDirectory() as directory:
+            result = NADFeatureServerIngest(Path(directory), KeysetClient()).ingest_oid_range(0, 3, generation="oid")
+            self.assertEqual(result["counts"]["source_records"], 3)
+            self.assertEqual(result["last_object_id"], 3)
 
 
 if __name__ == "__main__":
