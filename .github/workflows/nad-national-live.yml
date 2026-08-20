@@ -22,13 +22,17 @@ jobs:
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json, os, urllib.parse, urllib.request
-          stats = [{"statisticType": k, "onStatisticField": "OBJECTID", "outStatisticFieldName": n} for k,n in (("count","count"),("min","min"),("max","max"))]
-          q = urllib.parse.urlencode({"f":"json","where":"1=1","outStatistics":json.dumps(stats),"returnGeometry":"false"})
-          payload = json.loads(urllib.request.urlopen(os.environ["LAYER_URL"]+"/query?"+q, timeout=60).read())
-          if payload.get("error") or not payload.get("features"):
-              raise SystemExit(f"missing official NAD statistics: {payload}")
-          attrs = payload["features"][0]["attributes"]
-          lo, hi, count = int(attrs["min"]), int(attrs["max"]), int(attrs["count"])
+          def get(params):
+              q = urllib.parse.urlencode({"f":"json", **params})
+              payload = json.loads(urllib.request.urlopen(os.environ["LAYER_URL"]+"/query?"+q, timeout=60).read())
+              if payload.get("error"): raise SystemExit(f"official NAD query failed: {payload}")
+              return payload
+          count = int(get({"where":"1=1","returnCountOnly":"true"})["count"])
+          def stat(kind, name):
+              payload = get({"where":"1=1","outStatistics":json.dumps([{"statisticType":kind,"onStatisticField":"OBJECTID","outStatisticFieldName":name}]),"returnGeometry":"false"})
+              if not payload.get("features"): raise SystemExit(f"missing official NAD {kind} statistic: {payload}")
+              return int(payload["features"][0]["attributes"][name])
+          lo, hi = stat("min", "min_oid"), stat("max", "max_oid")
           if count <= 0 or hi <= lo: raise SystemExit("non-positive official NAD statistics")
           parts = 16; width = (hi - lo + parts) // parts
           shards = [{"lower": lo + i*width - 1, "upper": min(hi, lo + (i+1)*width - 1), "index": i} for i in range(parts) if lo + i*width <= hi]

@@ -112,9 +112,20 @@ class FeatureServerClient:
                 for feature in payload.get("features", [])]
 
     def statistics(self) -> dict[str, Any]:
-        stats = [{"statisticType": kind, "onStatisticField": "OBJECTID", "outStatisticFieldName": name}
-                 for kind, name in (("count", "object_count"), ("min", "min_object_id"), ("max", "max_object_id"))]
-        return self._request_query({"where": "1=1", "outStatistics": json.dumps(stats), "returnGeometry": "false"})
+        # This public NAD view accepts countOnly and single min/max statistics,
+        # but rejects a combined count/min/max outStatistics request. Keep one
+        # stable result shape while using the service's supported operations.
+        count_payload = self._request_query({"where": "1=1", "returnCountOnly": "true"})
+        values: dict[str, Any] = {"object_count": count_payload.get("count")}
+        for kind, name in (("min", "min_object_id"), ("max", "max_object_id")):
+            payload = self._request_query({"where": "1=1", "outStatistics": json.dumps([{
+                "statisticType": kind, "onStatisticField": "OBJECTID", "outStatisticFieldName": name,
+            }]), "returnGeometry": "false"})
+            features = payload.get("features") or []
+            if not features:
+                raise FeatureServerError(f"missing NAD {kind} OBJECTID statistic")
+            values[name] = features[0].get("attributes", {}).get(name)
+        return {"features": [{"attributes": values}]}
 
 
 def _field(metadata: dict[str, Any], *candidates: str) -> str | None:
