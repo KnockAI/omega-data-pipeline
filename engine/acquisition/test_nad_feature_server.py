@@ -63,6 +63,25 @@ class NADFeatureServerTest(unittest.TestCase):
         self.assertEqual(client.ids("1=1"), [1])
         self.assertEqual(len(attempts), 3)
 
+    def test_arcgis_payload_429_honors_sixty_second_quota_window(self):
+        class Response:
+            def __init__(self, payload): self.payload = payload
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self): return json.dumps(self.payload).encode()
+
+        attempts = []
+        def opener(url, timeout=60):
+            attempts.append(url)
+            if len(attempts) == 1:
+                return Response({"error": {"code": 429, "message": "quota"}})
+            return Response({"objectIds": [1]})
+
+        sleeps = []
+        client = FeatureServerClient("https://official.example", opener=opener, sleep=sleeps.append)
+        self.assertEqual(client.ids("1=1"), [1])
+        self.assertEqual(sleeps, [60])
+
     def test_operations_use_explicit_layer_and_query_endpoints(self):
         class Response:
             def __init__(self, payload): self.payload = payload
