@@ -62,14 +62,18 @@ class FeatureServerClient:
                 if "error" in payload:
                     code = int(payload["error"].get("code", 0))
                     if code in (429, 500, 502, 503, 504) and attempt < self.retries:
-                        self.sleep(min(30, 2 ** attempt)); continue
+                        # ArcGIS publishes a per-minute request-unit quota and
+                        # explicitly asks clients to retry 429s after 60s.
+                        # Honor that window instead of exhausting fast retries
+                        # and turning throttling into a false hard failure.
+                        self.sleep(60 if code == 429 else min(30, 2 ** attempt)); continue
                     raise FeatureServerError(str(payload["error"]))
                 return payload
             except urllib.error.HTTPError as exc:
                 last = exc
                 if exc.code not in (429, 500, 502, 503, 504) or attempt >= self.retries:
                     raise FeatureServerError(f"HTTP {exc.code}") from exc
-                self.sleep(min(30, 2 ** attempt))
+                self.sleep(60 if exc.code == 429 else min(30, 2 ** attempt))
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
                 last = exc
                 if attempt >= self.retries:
