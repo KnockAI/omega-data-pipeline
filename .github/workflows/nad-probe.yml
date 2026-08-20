@@ -1,0 +1,31 @@
+name: NAD R23 official probe
+on:
+  push:
+    branches: ["feat/nad-r23-failover"]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query official layer sample and ID counts
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          base='https://services.arcgis.com/xOi1kZaI0eWDREZv/ArcGIS/rest/services/Address_Points_from_National_Address_Database_view/FeatureServer/0/query'
+          out={}
+          for name, params in {
+            'sample': {'where':'1=1','outFields':'*','returnGeometry':'false','resultRecordCount':'3'},
+            'ids_all': {'where':'1=1','returnIdsOnly':'true'},
+            'ids_al': {'where':"State = 'AL'",'returnIdsOnly':'true'},
+          }.items():
+            query=urllib.parse.urlencode({'f':'json', **params})
+            payload=json.loads(urllib.request.urlopen(base+'?'+query, timeout=60).read())
+            out[name]={'keys': sorted(payload), 'count': len(payload.get('objectIds', [])), 'features': payload.get('features', [])[:3], 'error': payload.get('error')}
+          open('/tmp/nad-probe.json','w').write(json.dumps(out, indent=2))
+          print(json.dumps(out, indent=2)[:10000])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nad-official-probe
+          path: /tmp/nad-probe.json
