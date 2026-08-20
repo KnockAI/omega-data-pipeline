@@ -1,6 +1,8 @@
 name: NAD R23 national conveyor (non-production)
 
 on:
+  push:
+    branches: ["feat/nad-r23-failover"]
   workflow_dispatch:
 
 jobs:
