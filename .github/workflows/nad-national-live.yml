@@ -1,0 +1,68 @@
+name: NAD R23 national conveyor (non-production)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    strategy:
+      fail-fast: false
+      matrix:
+        batch:
+          - "AL,AR,FL,GA,HI,LA,MS"
+          - "AK,AZ,CO,ID,MT,NM,NV"
+          - "CT,DE,DC,MA,ME,MD,NC"
+          - "IL,IN,IA,KS,KY,MN,MO"
+          - "NE,ND,OH,OK,SD,TX,WI"
+          - "NJ,NY,PA,RI,VT,VA,WV"
+          - "CA,OR,SC,TN,UT,WA,WY"
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Acquire and canonicalize assigned states
+        env:
+          BATCH: ${{ matrix.batch }}
+        run: |
+          mkdir -p /tmp/nad-evidence
+          IFS=',' read -ra STATES <<< "$BATCH"
+          for state in "${STATES[@]}"; do
+            python -m engine.acquisition.nad_feature_server \
+              --workdir "/tmp/nad-evidence/$state" \
+              --state "$state"
+          done
+      - name: Upload partition evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: nad-r23-${{ strategy.job-index }}
+          path: /tmp/nad-evidence
+
+  reconcile:
+    needs: ingest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nad-r23-*
+          path: /tmp/nad-evidence
+          merge-multiple: true
+      - name: Verify every state has explicit disposition
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+          manifests = list(pathlib.Path('/tmp/nad-evidence').rglob('*.manifest.json'))
+          if not manifests:
+              raise SystemExit('no NAD partition manifests produced')
+          total = 0
+          for path in manifests:
+              data = json.loads(path.read_text())
+              counts = data['counts']
+              if counts['source_records'] != counts['canonical_records'] + counts['duplicates'] + counts['rejects']:
+                  raise SystemExit(f'unreconciled partition: {path}')
+              total += counts['canonical_records']
+          print(json.dumps({'partitions': len(manifests), 'canonical_records': total}, sort_keys=True))
+          PY
