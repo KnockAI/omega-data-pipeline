@@ -1,0 +1,10 @@
+{
+  "status": "OMEGA_RUNTIME_ORCHESTRATION_READY",
+  "production_promotion": false,
+  "durable_state": "sqlite_work_queue_with_leases_and_fencing",
+  "statuses": ["ready", "scheduled", "running", "retry", "blocked", "dead-letter", "completed", "cancelled"],
+  "failure_taxonomy": ["TRANSIENT", "PERMANENT", "AUTHORITY_BLOCKED", "RIGHTS_BLOCKED", "DEPENDENCY_BLOCKED", "BUDGET_EXHAUSTED", "DEADLINE_EXCEEDED", "INVALID_STATE", "EXTERNAL_FAILURE", "CONSTITUTION_VIOLATION"],
+  "proofs": ["restart_persistence", "stale_lease_fencing", "idempotent_delivery", "bounded_retry_dead_letter", "tenant_revocation", "deterministic_routing", "rights_and_authority_gates", "backpressure_contention"],
+  "tests": "engine.acquisition.test_omega_runtime (5/5)",
+  "next_objective": "OMEGA_RUNTIME_RESILIENCE_READY"
+}
