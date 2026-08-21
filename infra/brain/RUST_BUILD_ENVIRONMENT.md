@@ -18,3 +18,7 @@ The exact dependency set is pinned by `infra/brain/Cargo.lock`; the first
 resolver failure is `axum` (with the transitive `async-trait` package also
 unavailable locally). No Python rewrite or dependency-version change is
 authorized by this handoff.
+
+Execution evidence: using writable `CARGO_HOME=/private/tmp/cargo-home`, the
+locked fetch completed and `cargo test --locked --manifest-path
+infra/brain/Cargo.toml` passed on 2026-08-21.

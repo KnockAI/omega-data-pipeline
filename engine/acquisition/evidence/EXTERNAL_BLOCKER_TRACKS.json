@@ -1,6 +1,6 @@
 {
   "status": "EXTERNALLY_BLOCKED_ONLY_FOR_REMAINING_ACTIVATION",
-  "rust": {"status": "READY_FOR_CAPABLE_BUILD_ENV", "blocker": "writable/network-capable Cargo cache", "command": "CARGO_HOME=/var/cache/omega-cargo cargo fetch --locked --manifest-path infra/brain/Cargo.toml && cargo test --locked --manifest-path infra/brain/Cargo.toml"},
+  "rust": {"status": "DONE", "cache": "/private/tmp/cargo-home", "command": "CARGO_HOME=/private/tmp/cargo-home cargo fetch --locked --manifest-path infra/brain/Cargo.toml && CARGO_HOME=/private/tmp/cargo-home cargo test --locked --manifest-path infra/brain/Cargo.toml", "result": "locked dependency fetch and cargo test passed"},
   "production_infrastructure": {"status": "PREPARED_CREDENTIAL_INDEPENDENT", "artifacts": ["infra/production/env.example", "infra/production/preflight.sh", "infra/production/rollback.sh", "infra/production/README.md"], "blocked_step": "credential injection and founder-authorized staging/deployment"},
   "nad_coverage": {"status": "READY_TO_SEND", "jurisdictions": ["HI", "MI", "NH", "NV"], "action": "transmit prepared permission packets; do not reopen engineering"}
 }
