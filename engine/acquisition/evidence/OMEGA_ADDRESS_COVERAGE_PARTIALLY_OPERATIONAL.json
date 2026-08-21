@@ -1,0 +1,20 @@
+{
+  "status": "OMEGA_ADDRESS_COVERAGE_PARTIALLY_OPERATIONAL",
+  "production_promotion": false,
+  "covered_jurisdictions": 47,
+  "target_jurisdictions": 51,
+  "coverage_gaps": ["HI", "MI", "NH", "NV"],
+  "additional_territories": ["VI"],
+  "rights_gate": "fail_closed",
+  "query_contract": {
+    "covered": "canonical result with jurisdiction, active_source, source_release, rights_status, freshness, proof_sha",
+    "pending": "COVERAGE_PENDING_RIGHTS",
+    "unauthorized_fallback": "DENIED"
+  },
+  "activation_contract": "rights artifact -> validate -> proof hash -> registry ACTIVE -> existing acquire/canonicalize/reconcile/index/smoke path",
+  "evidence": {
+    "registry": "NATIONAL_COVERAGE_REGISTRY.json",
+    "source_proof": "NAD_R23_SOURCE_COMPLETE_PROVEN.json",
+    "tests": "engine.acquisition.test_omega_coverage (3/3), test_national_coverage, test_nad_reconcile"
+  }
+}
