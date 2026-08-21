@@ -1,0 +1,19 @@
+{
+  "invariant": "PUBLIC_RECORD != OPEN_DATA != COMMERCIAL_USE_RIGHT != DERIVATIVE_RIGHT != REDISTRIBUTION_RIGHT != RESALE_RIGHT",
+  "classifications": {
+    "CA": "CLEAR_NONEXEMPT_GIS_PUBLIC_RECORD",
+    "FL": "CLEAR_PUBLIC_GIS_UNLESS_SPECIFIC_EXCEPTION",
+    "TX": "SOURCE_SPECIFIC",
+    "NC": "COMMERCIAL_REUSE_CONDITIONAL",
+    "IN": "ELECTRONIC_MAP_SPECIAL_REGIME",
+    "WI": "ACCESS_CLEAR_REUSE_SOURCE_SPECIFIC",
+    "NV": "GIS_COST_RECOVERY_SOURCE_TERMS",
+    "HI": "DATASET_SPECIFIC",
+    "OR": "INTERGOVERNMENTAL_GIS_RESTRICTED_CLASS",
+    "NH": "DENIED_FOR_GENERAL_COMMERCIAL_INGEST"
+  },
+  "scope_key": ["jurisdiction", "agency", "dataset", "acquisition_method", "statutory_basis", "source_terms_version", "intended_use"],
+  "rights_vector": ["ACCESS", "COMMERCIAL_INTERNAL_USE", "DERIVATIVE_USE", "REDISTRIBUTION", "RESALE", "ATTRIBUTION", "FEES", "PRIVACY_SENSITIVE_USE", "MAILING_USE", "POLITICAL_USE"],
+  "implementation": "engine.acquisition.rights_vector",
+  "tests": "engine.acquisition.test_rights_vector (3/3)"
+}
