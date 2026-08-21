@@ -1,0 +1,9 @@
+{
+  "status": "OMEGA_ADAPT_REPEAT_READY",
+  "production_promotion": false,
+  "constitution": ["TENANT_ISOLATION", "RIGHTS_BEFORE_CAPABILITY", "HUMAN_AUTHORITY_SUPREMACY", "NO_SELF_APPROVAL", "NO_UNBOUNDED_AUTONOMY", "EVIDENCE_BEFORE_VERIFICATION", "IMMUTABLE_AUDIT_HISTORY", "FAIL_CLOSED_ON_AUTHORITY_AMBIGUITY"],
+  "authority_modes": ["AUTO_CANARY_ALLOWED", "HUMAN_CANARY_APPROVAL_REQUIRED", "HUMAN_PRODUCTION_APPROVAL_REQUIRED", "PROHIBITED"],
+  "proofs": ["proposal_evaluation", "immutable_candidate", "bounded_canary", "explicit_promotion", "deterministic_rollback", "drift_proposal_only", "bounded_repeat"],
+  "tests": "engine.acquisition.test_omega_adapt (4/4)",
+  "next_objective": "OMEGA_RUNTIME_ORCHESTRATION_READY"
+}
