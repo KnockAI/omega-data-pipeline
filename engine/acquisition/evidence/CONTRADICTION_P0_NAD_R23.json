@@ -1,0 +1,21 @@
+{
+  "status": "CONTRADICTION_P0",
+  "run_id": "32405983223",
+  "run_sha": "4f37567bb2ab511ce6430345f2a83192047f01d2",
+  "failed_invariant": "expected_51_jurisdictions_present_in_canonical_output",
+  "missing_jurisdictions": ["HI", "MI", "NH", "NV"],
+  "unexpected_jurisdictions": ["VI"],
+  "impact": "All 16 shard jobs succeeded and national source reconciliation is exact, but the canonical output does not prove complete 50-state-plus-DC coverage.",
+  "preserved_artifacts": true,
+  "smallest_failing_layer": "canonical state/jurisdiction coverage",
+  "source_total": 97928946,
+  "canonical_total": 97926940,
+  "duplicates": 1884,
+  "rejects": 122,
+  "unexplained_loss": 0,
+  "snapshot_marker_uniform": true,
+  "rights_invariant": true,
+  "mailing_list_export_denied": true,
+  "next_action": "Do not rerun successful shards. Diagnose source-to-state attribution/coverage for the four missing states and territory VI; isolate only the smallest affected layer.",
+  "created_at": "2026-08-21T02:23:10Z"
+}
