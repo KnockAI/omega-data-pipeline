@@ -1,6 +1,6 @@
 {
   "jurisdiction": "MI",
-  "status": "READY_WAITING_EXTERNAL",
+  "status": "READY_TO_SEND",
   "source_id": "michigan_dtmb_ng911_statewide_repository_site_structure_address_points",
   "authority": "Michigan DTMB / Michigan State Police 9-1-1 Administration",
   "request": "Confirm in writing that the statewide Site/Structure Address Points export may be copied, transformed, stored, redistributed as derived location intelligence, and used commercially, with required attribution and any contributor restrictions identified.",

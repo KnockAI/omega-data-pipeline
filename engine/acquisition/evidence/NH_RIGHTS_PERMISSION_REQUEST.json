@@ -1,6 +1,6 @@
 {
   "jurisdiction": "NH",
-  "status": "READY_WAITING_EXTERNAL",
+  "status": "READY_TO_SEND",
   "source_id": "nhview_basemap_address_points",
   "authority": "New Hampshire Department of Environmental Services / NHView",
   "request": "Confirm the underlying contributor chain and grant/identify terms permitting bulk acquisition, canonicalization, derived-work creation, commercial use, and redistribution of ADDRESS_POINTS, including required attribution and any restrictions.",
