@@ -7,6 +7,9 @@
   "preflight": "PASS",
   "secrets": "generated in process only; not persisted or logged",
   "shadow_safety": "no live production endpoint configured",
+  "rust_brain": {"status": "RUNNING", "port": 5501, "health": "PASS", "agent_shadow_request": "PASS", "fallback_used": false},
+  "scoring_sidecar": {"status": "PASS", "runtime": "RUNNING", "port": 8099, "mode": "deterministic_offline"},
+  "knock_backend": {"status": "BLOCKED_EXTERNALLY", "reason": "No Knock API/backend service or local runnable integration target exists in this checkout; Rust contract endpoint is available but cannot claim Knock end-to-end delivery."},
   "python_regression": "62/62 PASS",
   "live_production_touched": false
 }
