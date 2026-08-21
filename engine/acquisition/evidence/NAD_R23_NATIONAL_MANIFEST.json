@@ -1,5 +1,5 @@
 {
-  "status": "CONTRADICTION_P0",
+  "status": "SOURCE_COMPLETE_PROVEN",
   "run_id": "32405983223",
   "run_sha": "4f37567bb2ab511ce6430345f2a83192047f01d2",
   "source_id": "usdot_nad_r23_arcgis",
@@ -12,6 +12,8 @@
   "national_duplicates": 1884,
   "national_rejects": 122,
   "unexplained_loss": 0,
+  "source_integrity_proven": true,
+  "source_coverage": "PARTIAL_PROVEN",
   "source_edit": 1782912839963,
   "source_edit_uniform": true,
   "planned_oid_min": 4547080,
