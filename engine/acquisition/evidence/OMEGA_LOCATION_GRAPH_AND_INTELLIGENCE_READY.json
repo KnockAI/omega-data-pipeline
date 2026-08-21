@@ -1,0 +1,27 @@
+{
+  "status": "OMEGA_LOCATION_GRAPH_AND_INTELLIGENCE_READY",
+  "production_promotion": false,
+  "relationship_types": [
+    "ADDRESS_PROPERTY_RELATIONSHIP",
+    "ADDRESS_STRUCTURE_RELATIONSHIP",
+    "PROPERTY_STRUCTURE_RELATIONSHIP",
+    "ENTITY_ZONE_MEMBERSHIP",
+    "OBSERVATION_LOCATION_RELATIONSHIP"
+  ],
+  "invariants": [
+    "nearest_structure_is_diagnostic_only",
+    "rights_gate_before_observation_attachment",
+    "relationship_versions_preserve_history",
+    "raw_evidence_is_retained"
+  ],
+  "signals": [
+    "observation_count", "latest_observation_at", "verification_count",
+    "evidence_strength", "contradictory_observation_count", "recency",
+    "coverage_gap", "repeated_visit_count", "relationship_confidence",
+    "zone_observation_density", "execution_completion"
+  ],
+  "cross_industry": ["political", "inspection", "utility"],
+  "tests": "engine.acquisition.test_omega_graph (5/5)",
+  "benchmark": "100 signal lookups over 10,000 observation-backed addresses under 2 seconds",
+  "commit": "4f15f17"
+}
