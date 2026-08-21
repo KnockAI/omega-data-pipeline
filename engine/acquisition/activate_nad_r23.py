@@ -17,11 +17,13 @@ from .nad_transport import NADArcGISClient, NADTransportError
 
 
 def activate(workdir: Path, bulk: Path | None = None, states: list[str] | None = None) -> dict:
-    result = {"status": "BULK_TRANSPORT_DEGRADED", "attempts": []}
+    result = {"status": "BULK_TRANSPORT_DEGRADED", "attempts": [], "source_ingest_proven": False, "source_coverage": "UNVERIFIED", "us_51_coverage_complete": False}
     if bulk:
         try:
             result["bulk"] = NADR23Ingest(workdir).ingest(bulk)
-            result["status"] = "NAD_R23_NATIONAL_INGEST_PROVEN"
+            result["status"] = "NAD_R23_SOURCE_COMPLETE_PROVEN"
+            result["source_ingest_proven"] = True
+            result["source_coverage"] = "REQUIRES_REGISTRY_RECONCILIATION"
             return result
         except (OSError, ValueError) as exc:
             result["attempts"].append({"transport": "official_bulk", "error": str(exc)})
@@ -30,7 +32,9 @@ def activate(workdir: Path, bulk: Path | None = None, states: list[str] | None =
         result["arcgis_probe"] = probe
         result["attempts"].append({"transport": "official_arcgis", "status": probe.get("status")})
         result["feature_server"] = NADFeatureServerIngest(workdir).ingest(states)
-        result["status"] = "NAD_R23_NATIONAL_INGEST_PROVEN"
+        result["status"] = "NAD_R23_SOURCE_COMPLETE_PROVEN"
+        result["source_ingest_proven"] = True
+        result["source_coverage"] = "REQUIRES_REGISTRY_RECONCILIATION"
         return result
     except (NADTransportError, FeatureServerError, OSError, ValueError) as exc:
         result["attempts"].append({"transport": "official_arcgis", "error": str(exc)})
