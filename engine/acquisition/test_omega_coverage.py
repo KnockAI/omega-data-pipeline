@@ -1,10 +1,12 @@
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 from engine.acquisition.omega_coverage import (ACTIVE, PENDING, CanonicalAddressIndex,
                                                CoverageDenied, CoverageRegistry,
+                                               OmegaLocationQuery,
                                                activate_rights_artifact,
                                                validate_rights_artifact)
 
@@ -47,6 +49,34 @@ class CoverageTests(unittest.TestCase):
             result = activate_rights_artifact(rp, ap)
             self.assertTrue(result["activated"])
             self.assertEqual(CoverageRegistry.from_file(rp).decide("MI").status, ACTIVE)
+
+    def test_location_queries_and_knock_projection_are_deterministic(self):
+        index = CanonicalAddressIndex(CoverageRegistry(registry()))
+        index.load([
+            {"jurisdiction": "IN", "canonical_address_id": "in-1", "source_record_id": "src-1", "normalized_address": "1 MAIN", "latitude": 40.0, "longitude": -86.0, "h3_cell": "h3-a"},
+            {"jurisdiction": "DC", "canonical_address_id": "dc-1", "source_record_id": "src-2", "normalized_address": "1 MAIN", "latitude": 38.9, "longitude": -77.0, "h3_cell": "h3-b"},
+            {"jurisdiction": "VI", "canonical_address_id": "vi-1", "source_record_id": "src-3", "normalized_address": "1 BAY", "latitude": 18.3, "longitude": -64.9, "h3_cell": "h3-c"},
+        ])
+        service = OmegaLocationQuery(index)
+        self.assertEqual(service.query(jurisdictions=["IN"], h3_cell="h3-a")["count"], 1)
+        self.assertEqual(service.query(bbox=(-87, 39, -85, 41))["count"], 1)
+        mixed = service.query(jurisdictions=["IN", "MI"])
+        self.assertEqual(mixed["count"], 1)
+        self.assertEqual(mixed["unavailable_jurisdictions"], ["MI"])
+        self.assertEqual(service.query(jurisdictions=["IN"], address="1 MAIN"), service.query(jurisdictions=["IN"], address="1 MAIN"))
+        projected = service.knock_candidates(jurisdictions=["IN", "DC"])
+        self.assertEqual(projected["candidate_count"], 2)
+        self.assertNotIn("owner_name", projected["candidates"][0])
+
+    def test_query_benchmark_budget(self):
+        index = CanonicalAddressIndex(CoverageRegistry(registry()))
+        index.load([{"jurisdiction": "IN", "canonical_address_id": f"in-{i:06d}", "source_record_id": str(i), "normalized_address": f"{i} MAIN", "latitude": 39.0 + (i % 100) / 1000, "longitude": -86.0, "h3_cell": f"h3-{i % 100}"} for i in range(10000)])
+        service = OmegaLocationQuery(index)
+        start = time.perf_counter()
+        for _ in range(20):
+            service.query(jurisdictions=["IN"], bbox=(-87, 39, -85, 41), h3_cell="h3-42")
+        elapsed = time.perf_counter() - start
+        self.assertLess(elapsed, 2.0, f"20 indexed queries exceeded 2s: {elapsed:.3f}s")
 
 
 if __name__ == "__main__":

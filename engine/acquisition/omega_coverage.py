@@ -96,6 +96,66 @@ class CanonicalAddressIndex:
                 and (source_id is None or r.get("source_record_id") == source_id)]
 
 
+def _point_in_polygon(lon: float, lat: float, polygon: list[list[float]]) -> bool:
+    inside = False
+    j = len(polygon) - 1
+    for i, (xi, yi) in enumerate(polygon):
+        xj, yj = polygon[j]
+        if ((yi > lat) != (yj > lat)) and lon < (xj - xi) * (lat - yi) / ((yj - yi) or 1e-30) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+class OmegaLocationQuery:
+    """Deterministic non-production query service over canonical observations."""
+
+    def __init__(self, index: CanonicalAddressIndex):
+        self.index = index
+
+    def _all_active(self) -> list[dict[str, Any]]:
+        return [row for rows in self.index._rows.values() for row in rows]
+
+    def query(self, *, jurisdictions: Iterable[str] | None = None,
+              bbox: tuple[float, float, float, float] | None = None,
+              polygon: list[list[float]] | None = None,
+              h3_cell: str | None = None, address: str | None = None,
+              canonical_address_id: str | None = None,
+              source_record_id: str | None = None) -> dict[str, Any]:
+        requested = {str(j).upper() for j in jurisdictions} if jurisdictions else set(self.index._rows)
+        pending = sorted(j for j in requested if self.index.registry.decide(j).status != ACTIVE)
+        rows = [r for r in self._all_active() if r.get("jurisdiction") in requested]
+        if address is not None:
+            rows = [r for r in rows if r.get("normalized_address") == address]
+        if canonical_address_id is not None:
+            rows = [r for r in rows if r.get("canonical_address_id") == canonical_address_id]
+        if source_record_id is not None:
+            rows = [r for r in rows if r.get("source_record_id") == source_record_id]
+        if h3_cell is not None:
+            rows = [r for r in rows if r.get("h3_cell") == h3_cell]
+        if bbox is not None:
+            min_lon, min_lat, max_lon, max_lat = bbox
+            rows = [r for r in rows if min_lon <= r.get("longitude", 1e9) <= max_lon and min_lat <= r.get("latitude", 1e9) <= max_lat]
+        if polygon is not None:
+            rows = [r for r in rows if _point_in_polygon(r.get("longitude", 1e9), r.get("latitude", 1e9), polygon)]
+        rows = sorted(rows, key=lambda r: (r.get("canonical_address_id", ""), r.get("source_record_id", "")))
+        return {"results": rows, "count": len(rows), "unavailable_jurisdictions": pending,
+                "coverage_status": "COVERAGE_PENDING_RIGHTS" if pending else "ACTIVE"}
+
+    def knock_candidates(self, **query: Any) -> dict[str, Any]:
+        result = self.query(**query)
+        seen: set[str] = set(); candidates = []
+        for row in result["results"]:
+            key = row.get("canonical_address_id") or row.get("source_record_id")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            candidates.append({k: row.get(k) for k in ("canonical_address_id", "jurisdiction", "normalized_address", "latitude", "longitude", "h3_cell", "active_source", "rights_status", "proof_sha")})
+        result["candidates"] = candidates
+        result["candidate_count"] = len(candidates)
+        return result
+
+
 REQUIRED_RIGHTS_FIELDS = {
     "source", "granting_authority", "exact_dataset", "commercial_use",
     "storage_permission", "transformation_permission", "effective_date",
