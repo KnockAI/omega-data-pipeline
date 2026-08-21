@@ -1,0 +1,9 @@
+{
+  "status": "OMEGA_RUNTIME_RESILIENCE_READY",
+  "production_promotion": false,
+  "components": ["failure_injection", "side_effect_reconciliation", "circuit_breakers", "backup_restore", "health_model", "structured_events"],
+  "proofs": ["restart_state_restore", "ambiguous_irreversible_blocks", "dependency_open_probe_recovery", "structured_failure_events", "cancellation_restore_integrity", "missing_verification_not_fabricated"],
+  "tests": "engine.acquisition.test_omega_resilience (5/5)",
+  "scope_note": "SQLite reference-runtime resilience proof; no production HA/SLO claim",
+  "next_objective": "OMEGA_PRODUCTION_FOUNDATION_READY"
+}
