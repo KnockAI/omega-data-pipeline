@@ -1,0 +1,43 @@
+{
+  "jurisdiction": "MI",
+  "state_name": "Michigan",
+  "status": "HOLD_RIGHTS_OR_ACCESS",
+  "coverage_status": "NAD_BASELINE_ACTIVE",
+  "primary_source": {
+    "source_id": "michigan_dtmb_ng911_statewide_repository_site_structure_address_points",
+    "name": "Michigan Statewide NG911 GIS Repository — Site Structure Address Points",
+    "agency": "Michigan Department of Technology, Management and Budget; Michigan State Police 9-1-1 Administration",
+    "endpoint_or_item": "https://www.michigan.gov/dtmb/services/maps/michigan-statewide-ng911-gis-repository",
+    "download_documentation": "https://www.michigan.gov/dtmb/-/media/Project/Websites/dtmb/Services/GIS/NG911/Michigan-Statewide-NG911-Repository-User-Documentation-Data-Dowload-10_4_22.pdf",
+    "metadata_or_standard": "https://www.michigan.gov/dtmb/-/media/Project/Websites/dtmb/Services/GIS/NG911/MI_NG911_Best_Practices_v1_20260310.pdf",
+    "authority_basis": "Official statewide NG911 repository for PSAP-contributed site/structure address points; Michigan DTMB states the repository aggregates statewide NG911 GIS data and publishes metadata for the aggregated geodatabase.",
+    "source_fingerprint": null,
+    "record_count": null,
+    "refresh": "Contributor uploads recommended at least quarterly; no public snapshot/version was exposed in the reviewed official material."
+  },
+  "rights": {
+    "decision": "HOLD",
+    "classification": "UNRESOLVED_DATASET_SPECIFIC_REUSE_TERMS",
+    "commercial_reuse": "unresolved",
+    "evidence": "The official repository documentation describes controlled PSAP/repository downloads and contributor access, but does not grant an explicit unrestricted, public-domain, CC0, CC-BY, or commercial-reuse license for the statewide address-point export.",
+    "foia_or_public_record_inference_used": false,
+    "attribution": "Retain DTMB/MSP and contributing PSAP attribution if access and rights are later cleared."
+  },
+  "technical": {
+    "status": "NOT_RUN_RIGHTS_GATE",
+    "reason": "No acquisition performed while dataset-specific reuse terms and a public statewide delivery path remain unresolved.",
+    "generic_connector": "ArcGIS/FGDB adapter can be reused once an authorized export or endpoint is supplied.",
+    "identity_strategy": "Use contributor/agency ID plus source record ID/UUID where present; finalize against actual schema.",
+    "fallback": "usdot_nad_r23"
+  },
+  "county_local_failover": {
+    "status": "PARKED_UNTIL_RIGHTS_REGISTRY_ENTRIES_EXIST",
+    "reason": "Michigan has 83 county-maintained addressing authorities. The existing vault/source registry contains no complete county inventory or dataset-specific licenses; assembling a statewide county mosaic without those rights artifacts would be an unbounded source hunt and would risk unlicensed reuse.",
+    "next_activation": "For each registry-pinned county source with explicit permissive terms, run the existing generic ArcGIS/FGDB path and reconcile MI coverage against NAD."
+  },
+  "provenance": {
+    "captured_at": "2026-08-20",
+    "source_registry_checked": "engine/acquisition/evidence/state_batches_ad_rights.json",
+    "rights_artifact_sha256": null
+  }
+}
