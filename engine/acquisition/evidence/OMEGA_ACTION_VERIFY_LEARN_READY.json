@@ -1,0 +1,11 @@
+{
+  "status": "OMEGA_ACTION_VERIFY_LEARN_READY",
+  "production_promotion": false,
+  "action_types": ["HUMAN_TASK", "FIELD_JOB", "NOTIFICATION", "SYSTEM_ACTION", "EXTERNAL_INTEGRATION"],
+  "authority_modes": ["AUTO_ALLOWED", "HUMAN_APPROVAL_REQUIRED", "PROHIBITED"],
+  "verification_states": ["UNVERIFIED", "VERIFIED", "PARTIAL", "FAILED", "DISPUTED"],
+  "invariants": ["decision_immutable", "idempotent_effects", "failure_receipts", "independent_verification", "proposal_only_learning", "tenant_isolation", "rights_propagation", "lineage_replay"],
+  "scenarios": ["political", "inspection", "utility"],
+  "tests": "engine.acquisition.test_omega_action_loop (4/4)",
+  "next_objective": "OMEGA_ADAPT_REPEAT_READY"
+}
