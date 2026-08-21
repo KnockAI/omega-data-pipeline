@@ -22,6 +22,7 @@ class CoverageTests(unittest.TestCase):
     def test_real_registry_decision_shape(self):
         reg = CoverageRegistry(registry())
         self.assertEqual(reg.decide("IN").status, ACTIVE)
+        self.assertEqual(reg.decide("VI").status, ACTIVE)
         self.assertEqual(reg.decide("MI").status, PENDING)
         self.assertEqual(reg.decide("NH").status, PENDING)
 
