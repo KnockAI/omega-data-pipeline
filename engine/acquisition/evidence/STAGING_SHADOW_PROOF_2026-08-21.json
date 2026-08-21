@@ -1,0 +1,12 @@
+{
+  "environment": "staging",
+  "non_production": true,
+  "release_sha": "9dc609d",
+  "postgres": {"host": "127.0.0.1", "port": 55439, "database": "omega_staging", "connectivity": "PASS"},
+  "queue": {"type": "redis", "host": "127.0.0.1", "port": 56379, "connectivity": "PASS"},
+  "preflight": "PASS",
+  "secrets": "generated in process only; not persisted or logged",
+  "shadow_safety": "no live production endpoint configured",
+  "python_regression": "62/62 PASS",
+  "live_production_touched": false
+}
