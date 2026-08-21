@@ -1,0 +1,17 @@
+{
+  "jurisdiction": "NV",
+  "coverage_status": "DEGRADED",
+  "source_status": "HOLD_RIGHTS_OR_ACCESS",
+  "primary_source": "Nevada Division of State Lands statewide parcel layer with SiteAddress",
+  "endpoint": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+  "authority": "Nevada state/county parcel providers",
+  "metadata_observed": {
+    "description": "Statewide County Parcel Data provided by each county",
+    "address_field": "SiteAddress",
+    "geometry": "polygon"
+  },
+  "rights": "UNRESOLVED",
+  "reason": "Official service is reachable, but the metadata does not provide dataset-specific unrestricted/commercial reuse terms and identifies county-contributed data; no rights inferred from public access.",
+  "fallback": "NAD_R23",
+  "ingest_performed": false
+}

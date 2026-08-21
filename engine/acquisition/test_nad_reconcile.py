@@ -23,6 +23,18 @@ class NADReconcileTest(unittest.TestCase):
             data = json.loads(output.read_text())
             self.assertEqual(next(row for row in data["matrix"] if row["state"] == "UT")["nad_records"], 2)
 
+    def test_source_integrity_is_separate_from_jurisdiction_coverage(self):
+        manifest = {
+            "source_integrity_proven": True,
+            "source_coverage": "PARTIAL",
+            "coverage_gaps": ["HI", "MI"],
+            "additional_territories": ["VI"],
+            "records_by_state": {"UT": 2, "VI": 1},
+        }
+        rows = build_matrix(manifest)
+        self.assertEqual(next(r for r in rows if r["state"] == "HI")["coverage_status"], "DEGRADED")
+        self.assertEqual(next(r for r in rows if r["state"] == "UT")["coverage_status"], "COVERED_AUTHORITATIVE")
+
 
 if __name__ == "__main__":
     unittest.main()

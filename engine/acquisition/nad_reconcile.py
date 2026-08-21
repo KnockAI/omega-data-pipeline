@@ -16,6 +16,8 @@ STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI M
 
 def build_matrix(manifest: dict[str, Any] | None) -> list[dict[str, Any]]:
     counts = (manifest or {}).get("records_by_state", {})
+    source_complete = bool((manifest or {}).get("source_integrity_proven"))
+    coverage_gaps = set((manifest or {}).get("coverage_gaps", []))
     rows = []
     for state in STATES:
         n = counts.get(state)
@@ -24,7 +26,7 @@ def build_matrix(manifest: dict[str, Any] | None) -> list[dict[str, Any]]:
             "nad_records": n,
             "state_source_records": None,
             "canonical_records": n,
-            "state_override_status": "NAD_BASELINE",
+            "state_override_status": "NAD_BASELINE" if n is not None else "FAILOVER_REQUIRED",
             "coverage_delta": None,
             "unit_delta": None,
             "conflict_rate": None,
@@ -32,6 +34,7 @@ def build_matrix(manifest: dict[str, Any] | None) -> list[dict[str, Any]]:
             "freshness": manifest.get("compiled") if manifest else None,
             "rights": "CLEAR_FOR_NON_MAILING_USE",
             "refresh_status": "ACTIVE" if n is not None else "DEGRADED_PENDING_ACQUISITION",
+            "coverage_status": "COVERED_AUTHORITATIVE" if n is not None else ("DEGRADED" if state in coverage_gaps else "UNRESOLVED"),
         })
     return rows
 
@@ -40,8 +43,17 @@ def write_matrix(manifest_path: Path | None, output: Path) -> dict[str, Any]:
     manifest = json.loads(manifest_path.read_text()) if manifest_path and manifest_path.exists() else None
     matrix = build_matrix(manifest)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps({"source": "usdot_nad_r23", "matrix": matrix}, indent=2, sort_keys=True) + "\n")
-    return {"states": len(matrix), "acquired_states": sum(row["nad_records"] is not None for row in matrix), "output": str(output)}
+    payload = {
+        "source": "usdot_nad_r23",
+        "source_ingest_proven": bool((manifest or {}).get("source_integrity_proven")),
+        "source_coverage": (manifest or {}).get("source_coverage", "PARTIAL"),
+        "us_51_coverage_complete": not any(row["nad_records"] is None for row in matrix),
+        "coverage_gaps": (manifest or {}).get("coverage_gaps", []),
+        "additional_territories": (manifest or {}).get("additional_territories", []),
+        "matrix": matrix,
+    }
+    output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return {"states": len(matrix), "acquired_states": sum(row["nad_records"] is not None for row in matrix), "output": str(output), "source_ingest_proven": payload["source_ingest_proven"], "us_51_coverage_complete": payload["us_51_coverage_complete"]}
 
 
 if __name__ == "__main__":

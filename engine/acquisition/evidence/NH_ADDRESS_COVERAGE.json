@@ -1,0 +1,20 @@
+{
+  "jurisdiction": "NH",
+  "coverage_status": "DEGRADED",
+  "source_status": "HOLD_RIGHTS_OR_ACCESS",
+  "primary_source": "NH DES / NHView Basemap ADDRESS_POINTS layer",
+  "endpoint": "https://nhview.desc.nh.gov/hosting/rest/services/Basemap/MapServer/3",
+  "authority": "New Hampshire Department of Environmental Services / NHView",
+  "metadata_observed": {
+    "layer": "ADDRESS_POINTS",
+    "geometry": "point",
+    "supports_statistics": true,
+    "supports_pagination": true,
+    "max_record_count": 2000,
+    "service_item_id": "8aa8557dc7da4807b5b5a679f288a168"
+  },
+  "rights": "UNRESOLVED",
+  "reason": "Official layer is reachable and statewide-looking, but no dataset-specific unrestricted/commercial reuse terms were exposed in the service metadata; no rights inferred from public access.",
+  "fallback": "NAD_R23",
+  "ingest_performed": false
+}
