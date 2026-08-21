@@ -1,0 +1,40 @@
+{
+  "jurisdiction": "HI",
+  "status": "HOLD_RIGHTS",
+  "coverage_status": "COUNTY_FALLBACK_PINNED",
+  "source_id": "hawaii_county_address_points",
+  "source_name": "County of Hawaii Address Points",
+  "authority": "County of Hawaii Planning Department, Street Addressing Section",
+  "item_id": "2cf1b61674f7416aaa82ca89e991a332",
+  "service_url": "https://services1.arcgis.com/C2LPusZs5OXNGFDn/arcgis/rest/services/Address_Points/FeatureServer",
+  "layer_url": "https://services1.arcgis.com/C2LPusZs5OXNGFDn/arcgis/rest/services/Address_Points/FeatureServer/2",
+  "layer_id": 2,
+  "official_item_access": "public",
+  "source_scope": "Island of Hawaii (Hawaii County), not statewide",
+  "source_record_count": 95555,
+  "source_fingerprint": {
+    "object_id_field": "OBJECTID",
+    "max_record_count": 2000,
+    "capabilities": "Query,Extract",
+    "supports_advanced_queries": true,
+    "data_last_edit_date_epoch_ms": 1787221067168,
+    "schema_last_edit_date_epoch_ms": 1787220676265,
+    "copyright_text": "County of Hawaii, Planning Department.",
+    "extent_spatial_reference": 102525,
+    "field_names": ["OBJECTID", "TMK", "ADDRESSNUM", "ADDRESSSUF", "SDIRPRE", "SFEANME", "SFEATYP", "SDIRSUF", "ZIPCODE", "GlobalID"]
+  },
+  "metadata_url": "https://gis.hawaiicounty.gov/public/downloads/plhyperlinks/MetadataFiles/COH%20Address%20Point.pdf",
+  "metadata_evidence": [
+    "Metadata revised May 9, 2023; source is County of Hawaii Planning Department Street Addressing Section; November 2005, revised May 2023.",
+    "Metadata states the layer is intended as a planning guide and is not a legal representation; it documents omissions, duplicates, and positional limitations."
+  ],
+  "rights": "UNRESOLVED",
+  "rights_reason": "The exact ArcGIS item has public access and county copyright text but no dataset-specific licenseInfo, accessInformation, or explicit commercial/open-reuse grant. Public-record status alone is insufficient for clearance.",
+  "technical_status": "NOT_STARTED_BEYOND_METADATA_AND_COUNT",
+  "ingest_status": "NOT_AUTHORIZED",
+  "reconciliation": null,
+  "idempotency": null,
+  "provenance": "publisher, item id, service/layer URL, metadata URL, edit timestamps captured",
+  "captured_at": "2026-08-20",
+  "next_activation": "Obtain affirmative dataset-specific reuse terms from County of Hawaii; then run existing ArcGIS generic connector against layer 2."
+}
