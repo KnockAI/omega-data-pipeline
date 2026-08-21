@@ -152,7 +152,7 @@
       "freshness": 1787221067168,
       "jurisdiction": "HI",
       "primary_source": "hawaii_county_address_points",
-      "proof_sha": "f5b8e47e679970bae6771ebf940d92af332131d62c2a87f5839d787c50dea346",
+      "proof_sha": null,
       "release": 1787221067168,
       "rights": "UNRESOLVED",
       "source_count": 95555

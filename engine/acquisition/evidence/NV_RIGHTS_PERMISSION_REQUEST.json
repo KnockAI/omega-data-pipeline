@@ -1,0 +1,10 @@
+{
+  "jurisdiction": "NV",
+  "status": "READY_WAITING_EXTERNAL",
+  "source_id": "nevada_statewide_parcels_siteaddress",
+  "authority": "Nevada DOT GIS / contributing Nevada counties",
+  "request": "Identify each contributing county and confirm that the statewide parcel layer and SiteAddress attribute may be copied, transformed, stored, used commercially, and redistributed as derived location intelligence, with attribution and county-specific restrictions.",
+  "endpoint": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+  "fallback": "NAD_R23",
+  "rights_gate": "HOLD_UNTIL_AFFIRMATIVE_DATASET_SPECIFIC_TERMS"
+}
