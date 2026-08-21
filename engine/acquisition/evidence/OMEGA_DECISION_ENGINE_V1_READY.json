@@ -1,0 +1,10 @@
+{
+  "status": "OMEGA_DECISION_ENGINE_V1_READY",
+  "production_promotion": false,
+  "pipeline": ["UNDERSTAND", "IDENTIFY", "DECIDE"],
+  "decision_types": ["DO_NOTHING", "TARGET", "REVISIT", "VERIFY", "INSPECT", "ESCALATE", "BLOCK_RIGHTS"],
+  "invariants": ["tenant_isolation", "rights_gate_before_policy", "replayable_policy_version", "immutable_decision_record", "decision_action_outcome_separate"],
+  "cross_industry_packs": ["political", "inspection", "utility"],
+  "tests": "engine.acquisition.test_omega_decision (3/3)",
+  "next_objective": "OMEGA_ACTION_VERIFY_LEARN_READY"
+}

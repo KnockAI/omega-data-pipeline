@@ -21,7 +21,10 @@
     "zone_observation_density", "execution_completion"
   ],
   "cross_industry": ["political", "inspection", "utility"],
-  "tests": "engine.acquisition.test_omega_graph (5/5)",
+  "tests": {
+    "graph_suite": "engine.acquisition.test_omega_graph (5/5)",
+    "combined_targeted_suite": "graph + coverage + rights (11/11)"
+  },
   "benchmark": "100 signal lookups over 10,000 observation-backed addresses under 2 seconds",
   "commit": "4f15f17"
 }
