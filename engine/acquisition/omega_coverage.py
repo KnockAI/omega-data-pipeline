@@ -39,6 +39,11 @@ class CoverageRegistry:
     def decide(self, jurisdiction: str) -> CoverageDecision:
         code = jurisdiction.upper()
         row = self.rows.get(code)
+        if row is None:
+            for territory in self.registry.get("additional_territories", []):
+                if territory.get("jurisdiction") == code:
+                    return CoverageDecision(code, ACTIVE, territory.get("source"),
+                                            "CLEAR_FOR_NON_MAILING_USE", "R23", None, None)
         if not row or not row.get("coverage_status", "").startswith("COVERED"):
             return CoverageDecision(code, PENDING, row.get("primary_source") if row else None,
                                     row.get("rights") if row else None,
